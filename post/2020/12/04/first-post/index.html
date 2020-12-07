@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Adrianna Lam" />
+    
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../img/favicon.ico">
+    <title>Python and Using Reticulate</title>
+    <meta name="generator" content="Hugo 0.79.0" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="../../../../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:200,400,200bold,400old" />
+    
+    <!--[if lt IE 9]>
+			<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+			<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+		<![endif]-->
+
+    
+  </head>
+
+  <body>
+    <div id="wrap">
+      
+      <nav class="navbar navbar-default">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="../../../../../"><i class="fa fa-home"></i></a>
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div class="navbar-collapse collapse" id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+      
+        
+        <li><a href="../../../../../post/">BLOG</a></li>
+        
+        <li><a href="../../../../../projects/">PROJECTS</a></li>
+        
+        <li><a href="../../../../../resume/">RESUME</a></li>
+        
+      
+      </ul>
+    </div>
+  </div>
+</nav>
+
+      <div class="container">
+        <div class="blog-post">
+          <h3>
+            <strong><a href="../../../../../post/2020/12/04/first-post/">Python and Using Reticulate</a></strong>
+          </h3>
+        </div>
+ 
+<div class="blog-title">
+          <h4>
+         December 4, 2020 
+            &nbsp;&nbsp;
+            
+          </h4>
+        </div>
+
+        <div class="panel panel-default">
+          <div class="panel-body">
+            <div class="blogpost">
+              
+
+
+<div id="python-and-r" class="section level1">
+<h1>Python and R!</h1>
+<div class="figure">
+<img src="../../../../../img/python.png" />
+
+</div>
+<p>Before this course, I have never used Python before. After getting to learn about it for the past few weeks, I found that there are many similarities between Python and R! One useful tool in Python, is Pandas, a package with many data manipulation tools like the ones used in R. I had previously done data minipulation in R <a href="../../../../../project/project1/">(project 1)</a>, and was excited to use the Pandas package in Python to do the same.</p>
+<div id="using-pandas-in-python" class="section level2">
+<h2>Using Pandas in Python</h2>
+<p>Pandas can be used to emulate the tidyverse functions in R. A few handy functions to use are shown below!</p>
+<pre class="r"><code>quakes &lt;- quakes
+head(quakes)</code></pre>
+<pre><code>##      lat   long depth mag stations
+## 1 -20.42 181.62   562 4.8       41
+## 2 -20.62 181.03   650 4.2       15
+## 3 -26.00 184.10    42 5.4       43
+## 4 -17.97 181.66   626 4.1       19
+## 5 -20.42 181.96   649 4.0       11
+## 6 -19.68 184.31   195 4.0       12</code></pre>
+<p>.filter() is used to select and .query() is used to filter the dataset:</p>
+<pre class="python"><code>import pandas as pd
+(r.quakes
+.filter([&#39;mag&#39;, &#39;stations&#39;])
+.query(&#39;stations &gt; 20&#39;)
+).head()</code></pre>
+<pre><code>##     mag  stations
+## 0   4.8        41
+## 2   5.4        43
+## 6   4.8        43
+## 8   4.7        35
+## 14  6.1        94</code></pre>
+<p>.melt() is used to pivot the dataset longer:</p>
+<pre class="python"><code>pd.melt(r.quakes).head()</code></pre>
+<pre><code>##   variable  value
+## 0      lat -20.42
+## 1      lat -20.62
+## 2      lat -26.00
+## 3      lat -17.97
+## 4      lat -20.42</code></pre>
+<p>.assign() can be used to create a new variable in the dataset:</p>
+<pre class="python"><code>r.quakes.assign(depthcat = pd.cut(r.quakes[&#39;depth&#39;], bins=3, labels=[&#39;low&#39;, &#39;med&#39;, &#39;high&#39;])).head()</code></pre>
+<pre><code>##      lat    long  depth  mag  stations depthcat
+## 0 -20.42  181.62    562  4.8        41     high
+## 1 -20.62  181.03    650  4.2        15     high
+## 2 -26.00  184.10     42  5.4        43      low
+## 3 -17.97  181.66    626  4.1        19     high
+## 4 -20.42  181.96    649  4.0        11     high</code></pre>
+<p>Those are just a few of the functions Pandas has to offer, I suggest trying them all out for yourself!</p>
+</div>
+<div id="using-reticulate-so-python-and-r-can-communicate" class="section level2">
+<h2>Using reticulate so Python and R can communicate</h2>
+<p>Another super cool thing I learned this semester is that it is actually possible to communicate between R and Python! Take a look at this... using a handy package called reticulate, R can talk...</p>
+<pre class="r"><code>library(reticulate)
+Rtalk &lt;- &quot;&#39;Hello this is R speaking, can you hear me?&#39;&quot;</code></pre>
+<p>Then, using some python code... python can also talk. Because of reticulate, R said hello to Python, and Python is able to respond.</p>
+<pre class="python"><code>Ptalk = &quot;&#39;Hey R! This is Python! :)&#39;&quot;
+print(r.Rtalk, Ptalk)</code></pre>
+<pre><code>## &#39;Hello this is R speaking, can you hear me?&#39; &#39;Hey R! This is Python! :)&#39;</code></pre>
+<p>Like they say about any good, stable, fulfilling relationship... &quot;communication is key&quot;... and this is no different for R and Python. R studio allows R and Python to form this beautiful, harmonious relationship, even though they speak different languages!</p>
+</div>
+</div>
+
+            
+        <hr>         <div class="related-posts">
+                <h5>Related Posts</h5>
+                
+              </div> 
+            </div>
+          </div>
+
+   <hr>  <div class="disqus">
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+
+    (function() {
+      
+      
+      if (window.location.hostname == "localhost")
+        return;
+
+      var disqus_shortname = '';
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</div> 
+        </div>
+      </div>
+    </div>
+
+    
+    <footer>
+  <div id="footer">
+    <div class="container">
+      <p class="text-muted">&copy; All rights reserved. Powered by <a href="https://gohugo.io/">Hugo</a> and
+      <a href="http://www.github.com/nurlansu/hugo-sustain/">sustain</a> with ♥</p>
+    </div>
+  </div>
+</footer>
+<div class="footer"></div>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<script src="../../../../../js/docs.min.js"></script>
+<script src="../../../../../js/main.js"></script>
+
+<script src="../../../../../js/ie10-viewport-bug-workaround.js"></script>
+
+
+    
+  </body>
+</html>

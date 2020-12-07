@@ -1,0 +1,305 @@
+---
+title: "Project 2: Modeling, Testing, and Predicting"
+author: "SDS348 Fall 2020"
+date: "November 22, 2020"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+---
+```{r global_options, include=FALSE}
+library(knitr)
+hook_output = knit_hooks$get('output')
+knit_hooks$set(output = function(x, options) {
+  # this hook is used only when the linewidth option is not NULL
+  if (!is.null(n <- options$linewidth)) {
+    x = knitr:::split_lines(x)
+    # any lines wider than n should be wrapped
+    if (any(nchar(x) > n)) x = strwrap(x, width = n)
+    x = paste(x, collapse = '\n')
+  }
+  hook_output(x, options)
+})
+
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,fig.align="center",warning=FALSE,message=FALSE,fig.width=8, fig.height=5, linewidth=60)
+options(tibble.width = 100,width = 100)
+library(tidyverse)
+
+#CLASSIFICAITON DIAGNOSTICS FUNCTION
+class_diag<-function(probs,truth){
+  tab<-table(factor(probs>.5,levels=c("FALSE","TRUE")),truth)
+  acc=sum(diag(tab))/sum(tab)
+  sens=tab[2,2]/colSums(tab)[2]
+  spec=tab[1,1]/colSums(tab)[1]
+  ppv=tab[2,2]/rowSums(tab)[2]
+  f1=2*(sens*ppv)/(sens+ppv)
+
+  if(is.numeric(truth)==FALSE & is.logical(truth)==FALSE){
+    truth<-as.numeric(truth)-1}
+  
+  #CALCULATE EXACT AUC
+  ord<-order(probs, decreasing=TRUE)
+  probs <- probs[ord]; truth <- truth[ord]
+  
+  TPR=cumsum(truth)/max(1,sum(truth)) 
+  FPR=cumsum(!truth)/max(1,sum(!truth))
+  
+  dup<-c(probs[-1]>=probs[-length(probs)], FALSE)
+  TPR<-c(0,TPR[!dup],1); FPR<-c(0,FPR[!dup],1)
+  
+  n <- length(TPR)
+  auc<- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n]) )
+
+  data.frame(acc,sens,spec,ppv,f1,auc)
+}
+```
+Adrianna Lam asl2429
+
+The dataset chosen for this project is 'medicalcost' and shows different variables of individual patients that could influence the medical charges they recieve for their visit. There are 1338 observations for each of the 7 variables in the dataset: age, sex, bmi, children, smoker, region, and charges. Age is a numeric variable which gives the patient's age. Sex is a categorical variable and tells whether the patient is male or female. BMI is a numeric variable which gives each patient's body mass index. Children is a numeric variable which gives the amount of children each patient has. Smoker is a numeric binary variable, with 1 meaning they are a smoker, and 0 meaning they do not smoke. Region is a categorical variable which gives the locational region within the U.S. where the patient is from, this can be southwest, southeast, northwest, or northeast. Charges is a numeric variable which gives the dollar amount that the patient was charged with for their hospital visit. 
+
+```{R}
+library(tidyverse)
+library(cluster)
+library(ggplot2)
+medicalcost <- read_csv("medicalcost.csv")
+head(medicalcost)
+medicalcost <- medicalcost %>% mutate(smoker = ifelse(smoker == "yes", 1, 0)) #creating binary variable
+```
+### 1. MANOVA Test
+Perform a MANOVA testing whether any of your numeric variables (or a subset of them, if including them all is unreasonable or doesn’t make sense) show a mean difference across levels of one of your categorical variables (3). If they do, perform univariate ANOVAs to find response(s) showing a mean difference across groups (3), and perform post-hoc t tests to find which groups differ (3). Discuss the number of tests you have performed, calculate the probability of at least one type I error (if unadjusted), and adjust the significance level accordingly (bonferroni correction) before discussing significant differences (3). Briefly discuss MANOVA assumptions and whether or not they are likely to have been met (no need for anything too in-depth) (2).
+
+```{R}
+library(rstatix)
+
+group <- medicalcost$region
+DVs <- medicalcost %>% select(age, bmi, children, charges)
+#Test multivariate normality for each group (null: assumption met)
+sapply(split(DVs,group), mshapiro_test)
+
+#Optionally View covariance matrices for each group
+lapply(split(DVs,group), cov)
+
+man1<-manova(cbind(age,bmi,children,charges)~region, data=medicalcost)
+summary(man1) #MANOVA
+
+summary.aov(man1) #ANOVA
+
+medicalcost%>%group_by(region)%>%summarize(mean(age),mean(bmi),mean(children),mean(charges))
+
+#post-hoc t test
+pairwise.t.test(medicalcost$bmi, medicalcost$region, p.adj="none")
+pairwise.t.test(medicalcost$charges, medicalcost$region, p.adj="none")
+
+1-0.95^17 #type 1 error
+
+#bonferroni correction
+pairwise.t.test(medicalcost$bmi, medicalcost$region, p.adj="bonferroni")
+pairwise.t.test(medicalcost$charges, medicalcost$region, p.adj="bonferroni")
+
+0.05/17 #bonferroni adjusted significance level
+```
+MANOVA assumptions were tested for by testing for multivariate normality for each group and the p value < 0.05, so the assumptions are likely not met. A one-way MANOVA was conducted to determine the effect of region on four dependent numeric variables of age, bmi, children, charges. Significant differences were found across regions for at least one of the numeric variables, P illai trace = 0.088794, pseudo F (12, 3999) = 10.164, p < 0.001.
+Univariate ANOVAs for each numeric variable were conducted as follow-up tests to the MANOVA. The univariate ANOVAs for two dependent numeric variables were also significant- the bmi reponse: F (3, 1334) = 39.495, p < .0001 and the charges reponse: F (3, 1334) = 2.9696, p < 0.05. Post hoc t tests were performed on these 2 ANOVAs, conducting pairwise comparisons to determine which regions differed in bmi and charges. 
+1 MANOVA test was done, 4 ANOVAs, and 12 t tests, so 17 tests in total. The overall Type-I error rate is 0.5818797. The boneferroni adjusted significance level of α = .05/17 = 0.002941176 should be used to keep the overall type I error rate at .05. Post hoc analysis was performed with bonferroni adjustment. All of the pairs except for northwest and northeast, differed significantly in bmi. None of the pairs are significant for charges, when the bonferroni correction is used. 
+
+### 2. Randomization Test
+Perform some kind of randomization test on your data (that makes sense). The statistic can be anything you want (mean difference, correlation, F-statistic/ANOVA, chi-squared), etc. State null and alternative hypotheses, perform the test, and interpret the results (7). Create a plot visualizing the null distribution and the test statistic (3).
+
+```{R}
+medcost2 <- medicalcost %>% select(sex, charges)
+medcost2
+ggplot(medcost2,aes(charges,fill=sex))+geom_histogram(bins=6.5)+
+facet_wrap(~sex,ncol=2)+theme(legend.position="none")
+
+set.seed(348)
+medcost2 %>% group_by(sex) %>% summarize(means = mean(charges)) %>% 
+    summarize(diff(means))
+#randomization test
+rand_dist<-vector()
+for(i in 1:5000){
+new<-data.frame(charges=sample(medcost2$charges),sex=medcost2$sex)
+rand_dist[i]<-mean(new[new$sex=="female",]$charges)-
+mean(new[new$sex=="male",]$charges)}
+mean(rand_dist < -1387.172 | rand_dist > 1387.172)
+{hist(rand_dist,main="",ylab=""); abline(v = c(-1387.172, 1387.172),col="red")}
+```
+A randomization test for the mean difference of charges based on sex is conducted. The null hypothesis is that the mean charges are the same for female and male patients. The alternative hypothesis is that the mean charges are different for female and male patients.  The two tailed p-value for the randomization test is p = 0.037. Since p < 0.05, it can be concluded that there is a significant difference in mean charges between sexes, and the null hypothesis is rejected. 
+ 
+### 3. Linear Regression Model 
+Build a linear regression model predicting one of your response variables from at least 2 other variables, including their interaction. Mean-center any numeric variables involved in the interaction.
+
+Interpret the coefficient estimates (do not discuss significance) (10)
+Plot the regression using ggplot() using geom_smooth(method=“lm”). If your interaction is numeric by numeric, refer to code in the slides to make the plot or check out the interactions package, which makes this easier. If you have 3 or more predictors, just chose two of them to plot for convenience. (8)
+Check assumptions of linearity, normality, and homoskedasticity either graphically or using a hypothesis test (4)
+Regardless, recompute regression results with robust standard errors via coeftest(..., vcov=vcovHC(...)). Discuss significance of results, including any changes from before/after robust SEs if applicable. (8)
+What proportion of the variation in the outcome does your model explain? (4)
+
+```{R}
+#mean centering numeric variables
+medicalcost$charges_c <- (medicalcost$charges - mean(medicalcost$charges, 
+    na.rm = T))
+medicalcost$bmi_c <- (medicalcost$bmi - mean(medicalcost$bmi, 
+    na.rm = T))
+
+#linear regression
+fit<-lm(charges_c ~ bmi_c*sex, data=medicalcost); summary(fit)
+
+#plot 
+ggplot(medicalcost, aes(x=bmi_c, y=charges_c,group=sex))+geom_point(aes(color=sex))+
+geom_smooth(method="lm",aes(color=sex))
+
+#check assumptions of linearity, homoskedasticity
+resids<-fit$residuals
+fitvals<-fit$fitted.values
+ggplot()+geom_point(aes(fitvals,resids))+geom_hline(yintercept=0, color='red')
+library(sandwich)
+library(lmtest)
+bptest(fit)
+#normality 
+ks.test(resids, "pnorm", mean=0, sd(resids))
+
+#robust standard errors 
+coeftest(fit, vcov = vcovHC(fit))
+
+#proportion of variation in outcome
+(sum((medicalcost$charges_c-mean(medicalcost$charges_c))^2)-sum(fit$residuals^2))/sum((medicalcost$charges_c-mean(medicalcost$charges_c))^2)
+``` 
+
+Controlling for sex, for every 1 unit increase of bmi_c, charges_c increases by 297.12 dollars (significant, t = 3.896, df = 1334, p = 0.000103). Controlling for bmi_c, males have charges that are $1168.85 greater than females. (not signifianct, t = 1.801, df = 1334, p = 0.071914). The slope for bmi_c on charges_c is 179.96 dollars greater for males compared to females (interaction is not significant, t = 1.690, df = 1334, p = 0.091273). Assumptions of linearity, normality, and homoskedasticity are not met because p < 0.05. Regression is recomputed using the robust standard errors. Controlling for sex, there is a significant interaction between bmi_c and charges_c (t = 3.6597, p =  0.0002624). There are no changes in significance after the robust SEs. The model explains 0.04370452 of the variation in the outcome. 
+
+
+### 4. Regression Model Bootstrapped 
+Rerun same regression model (with the interaction), but this time compute bootstrapped standard errors (either by resampling observations or residuals). Discuss any changes you observe in SEs and p-values using these SEs compared to the original SEs and the robust SEs)
+```{R}
+#linear regression
+fit<-lm(charges_c ~ bmi_c*sex, data=medicalcost); summary(fit)
+
+#boostrapped SEs
+resids<-fit$residuals 
+fitted<-fit$fitted.values 
+resid_resamp<-replicate(5000,{
+new_resids<-sample(resids,replace=TRUE) 
+medicalcost$new_y<-fitted+new_resids
+fit2 <- lm(new_y~bmi_c*sex,data=medicalcost)
+coef(fit2) 
+})
+resid_resamp%>%t%>%as.data.frame%>%summarize_all(sd)
+
+#normal SEs
+coeftest(fit)
+#robust SEs
+coeftest(fit, vcov=vcovHC(fit))
+``` 
+
+The bootstrapped SEs are 76.52447	for bmi_c, 645.6866	 for sexmale, and 107.9064 for bmi_c:sexmale. These are slightly greater than the original SEs of 76.271 for bmi_c, 648.966 for sexmale, and 106.489 for bmi_c:sexmale. The robust SEs differ slightly from the bootstrapped SEs, the bmi_c SE is greater at 81.187, the sexmale SE is lower at 648.293, and the bmi_c:sexmale SE is greater at 116.525. In the bootstrapped regression, the bmi_c p-value is 0.000161 (significant), the sexmale p-value is 0.295017 (not significant), and the bmi_c:sexmale p-value is 0.078581 (not significant). These p-values differ from the original p-values, where the bmi_c p-value is 0.000103 (significant), the sexmale p-value is 0.071914 (not significant), and the bmi_c:sexmale p-value is 0.091273 (not significant). 
+
+
+### 5. Logistic Regression Model 
+Fit a logistic regression model predicting a binary variable (if you don’t have one, make/get one) from at least two explanatory variables (interaction not necessary).
+
+Interpret coefficient estimates in context (10)
+Report a confusion matrix for your logistic regression (2)
+Compute and discuss the Accuracy, Sensitivity (TPR), Specificity (TNR), Precision (PPV), and AUC of your model (5)
+Using ggplot, make a density plot of the log-odds (logit) colored/grouped by your binary outcome variable (3)
+Generate an ROC curve (plot) and calculate AUC (either manually or with a package); interpret (5)
+```{R}
+#mean center age
+medicalcost$age_c <- (medicalcost$age - mean(medicalcost$age, na.rm = T))
+
+#logisitic regression
+fit3 <- glm(smoker ~ charges_c+age_c, data = medicalcost, family = binomial(link = "logit"))
+summary(fit3)
+exp(coef(fit3))
+
+#confusion matrix 
+prob <- predict(fit3, data = "response")
+truth <- medicalcost$smoker
+table(truth, prediction = as.numeric(prob > 0.5)) %>% addmargins
+(1026+164)/1338 #accuracy 
+(1026/1064) #TPR
+(164/274) #TNR
+(1026/1136) #PPV
+
+#density plot 
+medicalcost$logit<-predict(fit3,type="link")
+medicalcost$smoker1<-as.factor(medicalcost$smoker) 
+medicalcost %>% group_by(smoker1) %>% ggplot()+geom_density(aes(logit,color=smoker1,fill=smoker1))
+
+#ROC curve 
+library(plotROC)
+ROCplot <- ggplot(medicalcost) + geom_roc(aes(d = smoker, 
+    m = prob), n.cuts = 0) + geom_segment(aes(x = 0, 
+    xend = 1, y = 0, yend = 1), lty = 2)
+ROCplot
+#calc AUC 
+calc_auc(ROCplot)
+``` 
+
+Controlling for age_c, for every 1 dollar increase in charges_c the odds of being a smoker increases by a factor of 1.00029485 (significant). Controlling for charges_c, for every 1 year increase in age_c the odds of being a smoker increases by a factor of 0.91746076 (significant). A confusion matrix is reported and accuracy is 0.8893871 which is the proportion of correctly classified cases, sensitivity (TPR) is 0.9642857 which is the true positive rate, specificity (TNR) is 0.5985401 which is the true negative rate, and PPV is 0.903169 which represents the proportion of those classified as smokers and actually are. An ROC plot is made and the AUC is calculated to be 0.9759738, this is a great AUC so smoker status can be predicted well from charges_c and age_c. 	
+
+### 6. Logistic Regression from all variables
+Perform a logistic regression predicting the same binary response variable from ALL of the rest of your variables (the more, the better!)
+
+Fit model, compute in-sample classification diagnostics (Accuracy, Sensitivity, Specificity, Precision, AUC), and interpret (5)
+Perform 10-fold (or repeated random sub-sampling) CV with the same model and report average out-of-sample classification diagnostics (Accuracy, Sensitivity, Specificity, Precision, and AUC); interpret AUC and compare with the in-sample metrics (10)
+Perform LASSO on the same model/variables. Choose lambda to give the simplest model whose accuracy is near that of the best (i.e., lambda.1se). Discuss which variables are retained. (5)
+Perform 10-fold CV using only the variables lasso selected: compare model’s out-of-sample AUC to that of your logistic regressions above (5)
+```{R}
+#mean center children
+medicalcost$children_c <- (medicalcost$children - mean(medicalcost$children, na.rm = T))
+
+#logigistic regresssion
+fit4 <- glm(smoker ~ sex + bmi_c + children_c + region , data = medicalcost, family = binomial(link = "logit"))
+summary(fit4)
+exp(coef(fit4))
+  
+#in-sample classification diagnostics
+prob1 <- predict(fit4, data = "response")
+class_diag(prob1, medicalcost$smoker)
+
+#10 fold CV
+set.seed(1234)
+k = 10
+data <- medicalcost[sample(nrow(medicalcost)), ]
+folds <- cut(seq(1:nrow(medicalcost)), breaks = k, labels = F)
+diags <- NULL
+for (i in 1:k) {
+    train <- data[folds != i, ]
+    test <- data[folds == i, ]
+    truth1 <- test$smoker
+    fit5 <- glm(smoker ~ sex + bmi_c + children_c + region , data = train,
+        family = "binomial")
+    prob2 <- predict(fit5, newdata = test, type = "response")
+    diags <- rbind(diags, class_diag(prob2, truth1))
+}
+summarize_all(diags, mean) #out-of-sample classifications
+
+#LASSO
+library(glmnet)
+set.seed(1234)
+y <- as.matrix(medicalcost$smoker)
+preds <- model.matrix(smoker ~ sex + bmi_c + children_c + region , data = medicalcost)[, -1]
+head(preds)
+cv <- cv.glmnet(preds, y, family = "binomial")
+lasso_fit <- glmnet(preds, y, family = "binomial", lambda = cv$lambda.1se)
+coef(lasso_fit)
+
+#CV with LASSO
+set.seed(1234)
+k = 10
+data <- medicalcost[sample(nrow(medicalcost)), ]
+folds <- cut(seq(1:nrow(medicalcost)), breaks = k, labels = F)
+diags <- NULL
+for (i in 1:k) {
+    train2 <- data[folds != i, ]
+    test2 <- data[folds == i, ]
+    truth2 <- test2$smoker
+    fit6 <- glm(smoker ~ age_c, data = train2, 
+        family = "binomial")
+    prob3 <- predict(fit6, newdata = test2, type = "response")
+    diags <- rbind(diags, class_diag(prob3, truth2))
+}
+summarize_all(diags, mean)
+``` 
+A logistic regression in done to predict smoker status from the response variables not used yet (sex, bmi_c, children_c, region). There is only one significant result from sexMale, if the patient is a male the odds of being a smoker increases by a factor of 1.4616456 (significant). In-sample classifications are computed, the accuracy is 0.7952167 which is the proportion of correctly classified cases, the sensitivity (TPR) is 0 which is the true positive rate, specificity (TNR) is 1 which is the true negative rate, PPV and f1 are NaN, and AUC is 0.5719688 which is bad. A 10 fold CV is conducted, and the out-of-sample classification diagnostics are found to be very similar to the in-sample classifications: accuracy = 0.7951969, sensitivity = 0, specificity = 1, PPV and f1 are NaN, and AUC = 0.5503504. This AUC is slightly less than the previous AUC, and both are considered to be bad. LASSO is performed, and the only variable which is retained is sexmale. A 10 fold CV with the LASSO predicited variable is conducted and gives an AUC of 0.5174894. This AUC is smilar to the previously found ones, but is slightly lower. Overall, all AUCs found are bad, and smoker status cannot be predicted very well from sex, bmi_c, children_c, and region. 

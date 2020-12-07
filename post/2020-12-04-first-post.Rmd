@@ -1,0 +1,58 @@
+---
+title: Python and Using Reticulate
+author: ''
+date: '2020-12-04'
+slug: first-post
+categories: []
+tags: []
+description: 'Some cool Python stuff we have been learning in class! Also, how to make Python talk to R using reticulate.'
+---
+
+# Python and R!
+![](/img/python.png)
+
+Before this course, I have never used Python before. After getting to learn about it for the past few weeks, I found that there are many similarities between Python and R! One useful tool in Python, is Pandas, a package with many data manipulation tools like the ones used in R. I had previously done data minipulation in R [(project 1)](/project/project1/), and was excited to use the Pandas package in Python to do the same. 
+
+## Using Pandas in Python 
+Pandas can be used to emulate the tidyverse functions in R. A few handy functions to use are shown below!
+
+```{R}
+quakes <- quakes
+head(quakes)
+```
+.filter() is used to select and .query() is used to filter the dataset:
+```{python}
+import pandas as pd
+(r.quakes
+.filter(['mag', 'stations'])
+.query('stations > 20')
+).head()
+```
+.melt() is used to pivot the dataset longer:
+```{python}
+pd.melt(r.quakes).head()
+```
+.assign() can be used to create a new variable in the dataset:
+```{python}
+r.quakes.assign(depthcat = pd.cut(r.quakes['depth'], bins=3, labels=['low', 'med', 'high'])).head()
+```
+Those are just a few of the functions Pandas has to offer, I suggest trying them all out for yourself! 
+
+## Using reticulate so Python and R can communicate 
+Another super cool thing I learned this semester is that it is actually possible to communicate between R and Python! Take a look at this... using a handy package called reticulate, R can talk...
+```{R}
+library(reticulate)
+Rtalk <- "'Hello this is R speaking, can you hear me?'"
+```
+Then, using some python code... python can also talk. Because of reticulate, R said hello to Python, and Python is able to respond. 
+```{python}
+Ptalk = "'Hey R! This is Python! :)'"
+print(r.Rtalk, Ptalk)
+```
+Like they say about any good, stable, fulfilling relationship... "communication is key"... and this is no different for R and Python.
+R studio allows R and Python to form this beautiful, harmonious relationship, even though they speak different languages! 
+
+
+
+
+

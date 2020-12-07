@@ -1,0 +1,148 @@
+---
+title: "Exploratory Data Analysis Project"
+author: "SDS348 Fall 2020"
+date: "October 18, 2020"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+---
+```{r global_options, include=FALSE}
+#DO NOT EDIT THIS CHUNK OR ANYTHING ABOVE IT!
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F, tidy=T, tidy.opts=list(width.cutoff=50), R.options=list(max.print=100,dplyr.print_max=100))
+```
+Adrianna Lam asl2429
+
+  Two datasets were chosen for my exploratory data analysis project. The first dataset `covid`, was found on kaggle.com, and contains 8 variables total, 1 categorical and 7 numeric. The `covid` data has 51 observations, one for each of the 50 states plus the District of Columbia. For each state, data is given for the number of COVID-19 tests administered, the amount of people infected by COVID, the amount of deaths as a result of COVID, the state population, the average income of the residents, the GDP, and percentage of unemployment. The second dataset chosen is `insurance`, and was also found on the kaggle site. The `insurance` dataset also includes 1 categorical variable of states, and then 3 other numeric variables. For each state (including District of Columbia and the entire U.S.), the percentage of the population that is medically uninsured is given, as well as the amount of residents enrolled in Medicaid and Medicare. 
+  
+  The datasets `covid` and `insurance` were chosen because I am interested in researching the accessibility of healthcare, especially during the COVID-19 pandemic, and further understanding how the lack of economic resources and medical insurance can affect the health of vulnerable populations. As a pre-med student, I believe it's important to always factor in the social determinants of health, and to consider them when understanding healthcare statistics and trends. I also find it interesting to explore the variability between each state, and how the pandemic affected them all differently. I anticipate some associations between perecent uninsured in each state, and the average state resident income, GDP, and unemployment percent. Another expectation is that the state's with higher uninsurance rates will have less tests administered and therefore fewer amount of infected individuals and deaths. I also anticipate that states with a greater population will admininster more tests, and have higher numbers of infected indivdiuals and deaths, just as a result of having a greater amount of residents.
+```{R}
+library(tidyverse)
+library(cluster)
+library(ggplot2)
+covid <- read_csv("covid.csv")
+insurance <- read_csv("insurance.csv")
+head(covid)
+head(insurance)
+```
+### 1. Tidying: Rearranging Wide/Long
+
+Datasets are already tidy, so tidying functions are used in #3 to make the summary tables. 
+```{R}
+
+```
+
+### 2. Joining/Merging
+
+```{R}
+fulldata <- full_join(covid, insurance, by=c("State")) #full join by State
+
+fulldata <- fulldata %>% slice(-c(52)) #removing extra United States observation
+```
+  A full join was done on the `covid` and `insurance` datasets to create `fulldata`, based on the categorical variable State. There were 51 observations in the State variable of the 'covid' dataset, for each of the 50 states plus District of Columbia. There were 52 observations in the 'insurance' dataset, the extra row being for the United States. A full join was used because after joining by the State variable, all the original data from the 2 datasets are retained into the `fulldata`. As a result, the new joined dataset has 11 variables, 1 categorical being State, and then the other 10 variables are the numeric variables that correspond to each state. After the join, the United States case was dropped because there was no data for it in the `covid` data, leaving 51 observations in the State variable. 
+ 
+ 
+### 3. Wrangling
+
+```{R}
+fulldata <- fulldata %>% mutate(`Percent Uninsured` = str_replace(`Percent Uninsured`,"%","")) #removing % sign from Percent Uninsured column using mutate
+
+fulldata <- fulldata %>% mutate_all(type.convert) %>% mutate_if(is.factor, as.character) %>% mutate(`Percent Uninsured`) #converting Percent Uninsured to numeric variable using mutate
+
+fulldata <- fulldata %>% mutate(Positive = (Infected/Tested)) #creating new numeric variable for rate of positive tests using mutate
+
+fulldata%>%rename_all(function(x)str_replace(x,"_",""))%>%
+  summarize_if(is.numeric,.funs = list("mean"=mean,"median"=median,"sd"=sd, "var" = var, "min"=min, "max"=max),na.rm=T)%>%
+  pivot_longer(contains("_"))%>%
+  separate(name,sep="_",into=c("variable","Stat"))%>%
+  pivot_wider(names_from = "variable",values_from="value")%>%arrange(Stat) #overall summary statistics of all numeric variables using summarize, arrange, pivot_longer, and pivot_wider
+
+fulldata <- fulldata %>% filter(Positive>0) %>% mutate(Positive_cat = case_when(Positive<0.093 ~ "low", 0.093<= Positive & Positive <= 0.186 ~ "med", Positive > 0.186 ~ "high")) #creating new categorical variable for categorizing positive rates using filter and mutate
+
+fulldata %>% group_by(Positive_cat) %>% select(is.numeric) %>% summarize_all(list(mean=mean, median=median, sd=sd, var=var, min=min, max=max), na.rm=T) %>% pivot_longer(c(-1), values_to="values", names_to ="stat")%>% separate(stat,sep="_",into=c("variable","stat"))%>%pivot_wider(names_from="variable", values_from="values")%>% arrange(match(Positive_cat, c("high", "med", "low"))) #summary statistics when grouped by categories of positive rates using groupby, select, arrange, pivot_longer and pivot_wider
+
+fulldata_nums <- fulldata %>% column_to_rownames("State") %>% select_if(is.numeric)
+cordat <- cor(fulldata_nums, use="complete.obs")
+cordat #correlation matrix on numeric variables using select
+``` 
+  To create a summary table for the overall summary statistics of every numeric variable, I had to first ensure that all my intended numeric variables were categorized as numeric. I ran into an issue with my Percent Uninsured variable, becase the data in the column contained an extra "%", causing the variable to be counted as a character. To solve this I used the mutate() and str_replace() function to remove the "%" and then converted the variable into a numeric variable. Using mutate(), an additional numeric variable was then created and named Postive, which shows the rate of tests coming back with a positive result. The function summarize() was then used to create a table of the summary statistics: mean, median, sd, variance, min, and max, for each numeric variable overall. To tidy the table, pivot_longer() was used to order the column names and their variables into two columns, and then separate() was used to create separate columns for the variable names and summary statistics. Pivot_wider() and arrange() were then used to shift the rows into columns, and alphabetize the statistic column. 
+  
+  Using filter() and mutate(), a new categorical variable was made called Positive_cat, which categorizes the positive rates into high, med, and low. A table for the same six summary statistics grouped by the Positive_cat variable is then created using group_by(), select(), and summarize(). Tidying is then done to reshape the table, pivot_longer(), separate(), pivot_wider(), and arragne() are used much like in the previous overall table to organize the data. This table shows the mean, median, sd, variance, min and max statistics of each numeric variable for the high, med, and low groups. A correlation matrix is then created for all of the numeric variables in the data. There are high correlations between deaths and infected, tested and infected, tested and medicaid enrollment, medicaid enrollment and population, medicaid enrollment and medicare enorollment, and medicare enorllment and population. 
+    
+### 4. Visualizing
+
+```{R}
+tidycor <-cordat %>% as.data.frame %>% rownames_to_column("var1") %>% pivot_longer(-1, names_to="var2", values_to = "correlation")
+tidycor
+tidycor %>% ggplot(aes(var1,var2,fill=correlation)) + geom_tile() + scale_fill_gradient2(low="red", mid="white", high="blue") + geom_text(aes(label=round(correlation,2)), color="black", size =3) + theme(axis.text.x = element_text(angle=90,hjust=1)) + coord_fixed() #correlation heatmap
+```
+  A correlation heatmap for all of the numeric variables was made. Blue colored correlations are more highly correlated, while the red colored correlations are negatively correlated. The heatmap shows strong relationships between the number of tested individuals in a state and the number of deaths, infected, medicaid enrollement, medicare enrollement, and population. This correlation is most likeley seen as a result of state population, the states with more people will usually have higher numbers in these stats. There is also a very high association between the number of infected individuals and the number of deaths in a state. The percent of uninsured people in a state is also significantly negatively associated with the rate of positive tests, income, and GDP of a state. States with a higher percentage of uninsured people will have lower rates of positive tests, and a lower state income and GDP. 
+
+```{R}
+options(scipen = 999)
+fulldata %>% ggplot(aes(`Medicaid Enrollment`, `Tested`, color = Population)) +geom_point()+scale_y_log10()+scale_x_log10()+scale_color_gradient(low="yellow", high="red")+ggtitle("State Medicaid Enrollment vs. Administered COVID-19 Tests") + xlab("Medicaid Enrollment")+ ylab("COVID-19 Tested") #scatterplot
+```
+  A scatterplot is made that plots medicaid enrollment vs. the amount of tests administered in a state. The points are then colored by its state population. The ggplot shows a strong correlation between medicaid enrollment, the amount of COVID tests administered, and state population. The greater the amount of people in a state, the higher the amount of medicaid enrollment, and the greater amount of COVID tests administered. Red shows the states with higher population, and yellow shows the states with less population. Both the x and y axis were scaled by log 10. 
+
+```{R}
+fulldata %>% ggplot(aes(x= State, fill=Positive_cat))+ geom_bar(aes(y=`Percent Uninsured`, position='fill' ),stat="summary", fun=mean)+theme(axis.text.x = element_text(angle=45, hjust=1))+scale_fill_manual("Positive", values=c("high"="pink","med"="lavender", "low"="light blue"))+scale_y_continuous(n.breaks=10)+ggtitle("Percent Uninsured In Each State") + xlab("State")+ ylab("Percent Uninsured (%)")+coord_flip() #barplot
+```
+  A barplot was made that showed the percent of uninsured people in each state. Each bar was colored by Positive_cat. Pink bars have a high positive rate, purple bars have a medium positive rate, and blue bars have a low positive rate. An association can be seen, as it looks like the states with lower positive rates have generally a higher percent of uninsured people. The states with medium positive rates have generally a more high/medium percent uninsured. The states in the low positive rate category have generally a lower rate of uninsured. There is a negative correlation between the percent uninsured and the positive rate category of each state. 
+
+###5. Dimensionality Reduction 
+
+```{R}
+clust_dat <- fulldata %>% select(Tested,Infected,Deaths,Population) %>% scale %>% as.data.frame #process data (scale numeric variables) #only use numerics(euclidean)
+```
+For the clustering, only the numeric variables of Tested, Infected, Deaths and Population were used, which were then processed by scaling. It was named to a vector called clust_dat. 
+
+```{R}
+sil_width<-vector() #choose number of clusters k (silhouette method)
+for(i in 2:10){
+pam_fit <- pam(clust_dat, k = i)
+sil_width[i] <- pam_fit$silinfo$avg.width
+}
+ggplot()+geom_line(aes(x=1:10,y=sil_width))+scale_x_continuous(name="k",breaks=1:10) #disucss goodness-of-fit
+```
+Using the PAM clustering silhouette method, it can be determined that there should be 2 numbers of clusters. The goodness of fit plot shows that the greatest width is between 2 groups, so 2 clusters will be used in PAM analysis.  
+
+```{R}
+pam1 <- clust_dat %>% pam(2) #cluster analysis (PAM)
+pam1
+```
+A PAM cluster analysis is performed by clustering into 2 clusters, and the results are shown. It is named to pam1. 
+```{R}
+clust_dat <- clust_dat %>% mutate(cluster=as.factor(pam1$clustering))
+
+ggplot(clust_dat, aes(x=Tested,y=Infected, color=cluster))+geom_point() #visualize clusters
+```
+The cluster assignment is saved as a column in the dataset. A scatterplot of the data is then made, showing Tested vs. Infected, and colored by final cluster assignment. Two clusters can be seen. The first cluster is more numerous and concise, and the second cluster is more sparse and has less observations. 
+
+```{R}
+library(plotly)
+clust_dat%>%plot_ly(x= ~Tested,  y = ~Infected, z = ~Deaths, color= ~cluster, type = "scatter3d", mode = "markers")
+```
+A 3D plot is made of the three variables- Tested, Infected, and Deaths with the 2 clusters. The different clusters can be visualized. 
+```{R}
+library(GGally)
+ggpairs(clust_dat, aes(color=cluster))
+```
+A graphic is then created to visualize all the pairwise combinations of all the 4 variables in the 2 cluster groups. The 2 distinct clusters can be seen. 
+```{R}
+pam1$silinfo$avg.width
+plot(pam1, which=2) #interpret silhouette width, goodness of fit
+```
+A silhouette plot of the PAM clustering is made, with the average silhouette width being 0.64. This value indicates that a reasonable structure has been found, meaning that choosing 2 groups to perform clustering with was a good idea. 
+```{R}
+clust_dat%>%mutate(cluster=pam1$clustering)%>%group_by(cluster)%>% rename_all(function(x)str_replace(x,"_",""))%>%
+  summarize_if(is.numeric,.funs = list("mean"=mean,"median"=median,"sd"=sd),na.rm=T)%>%
+  pivot_longer(contains("_"))%>%
+  separate(name,sep="_",into=c("variable","stat"))%>%
+  pivot_wider(names_from = "variable",values_from="value")%>%arrange(stat) #interpret clusters
+```    
+The summary statistics of mean, median, and sd for each of the four variables were then found for cluster 1 and 2. 
+
+
+  PAM clustering was performed on the numeric variables- Tested, Infected, Deaths, and Population. From the PAM clustering silhouette it can be found that 2 clusters should be used for the PAM analysis, because there is the greatest width at k = 2. The PAM clustering analysis performed shows how far the clusters are from each other, and it is then visualized in multiple plots. From the plots, it can be seen that there are 2 distinct clusters, but the first cluster is more concise and plentiful, while the second is sparse and spread out. The average silhouette width was found to 0.64, meaning that choosing 2 clusters was appropriate because there are reasonable structures found. Finally, a table for the summary statistics of each cluster is created. The means and medians of each variable for cluster 1 are negative, while they are positive for cluster 2. The standard deviation for cluster 1 is also a lot smaller than that of cluster 2. These stats are consistent with the plots created and silhouette method performed to visualize the 2 clusters. 
+    

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on Adrianna Lam</title>
+    <link>/post/</link>
+    <description>Recent content in Posts on Adrianna Lam</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language>
+    <lastBuildDate>Fri, 04 Dec 2020 00:00:00 +0000</lastBuildDate><atom:link href="/post/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Python and Using Reticulate</title>
+      <link>/post/2020/12/04/first-post/</link>
+      <pubDate>Fri, 04 Dec 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/post/2020/12/04/first-post/</guid>
+      <description>Python and R!  Before this course, I have never used Python before. After getting to learn about it for the past few weeks, I found that there are many similarities between Python and R! One useful tool in Python, is Pandas, a package with many data manipulation tools like the ones used in R. I had previously done data minipulation in R (project 1), and was excited to use the Pandas package in Python to do the same.</description>
+    </item>
+    
+  </channel>
+</rss>

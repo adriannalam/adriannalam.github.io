@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Projects on Adrianna Lam</title>
+    <link>/project/</link>
+    <description>Recent content in Projects on Adrianna Lam</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language><atom:link href="/project/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Exploratory Data Analysis Project</title>
+      <link>/project/project1/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/project/project1/</guid>
+      <description>Adrianna Lam asl2429
+Two datasets were chosen for my exploratory data analysis project. The first dataset covid, was found on kaggle.com, and contains 8 variables total, 1 categorical and 7 numeric. The covid data has 51 observations, one for each of the 50 states plus the District of Columbia. For each state, data is given for the number of COVID-19 tests administered, the amount of people infected by COVID, the amount of deaths as a result of COVID, the state population, the average income of the residents, the GDP, and percentage of unemployment.</description>
+    </item>
+    
+    <item>
+      <title>Project 2: Modeling, Testing, and Predicting</title>
+      <link>/project/project2/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/project/project2/</guid>
+      <description>Adrianna Lam asl2429
+The dataset chosen for this project is &#39;medicalcost&#39; and shows different variables of individual patients that could influence the medical charges they recieve for their visit. There are 1338 observations for each of the 7 variables in the dataset: age, sex, bmi, children, smoker, region, and charges. Age is a numeric variable which gives the patient&#39;s age. Sex is a categorical variable and tells whether the patient is male or female.</description>
+    </item>
+    
+  </channel>
+</rss>
